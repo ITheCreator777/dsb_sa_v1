@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дашборд проектов 2026</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f4f7f9;
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --text-muted: #666;
+            --border-color: #e0e6ed;
+            --blue: #3b82f6;
+            --red: #ef4444;
+            --orange: #f59e0b;
+            --green: #10b981;
+            --purple: #8b5cf6;
+            --gray: #94a3b8;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .refresh-btn {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .refresh-btn:hover { background: #f9fafb; }
+
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .stat-value { font-size: 32px; font-weight: bold; display: block; }
+        .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-top: 5px; }
+
+        /* Main Content Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .section-title { font-size: 14px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; margin-bottom: 15px; }
+
+        /* Alert Cards */
+        .project-alert {
+            background: #fff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 5px solid var(--gray);
+        }
+        .alert-high { border-left-color: var(--red); background: #fffafb; }
+        .alert-medium { border-left-color: var(--orange); background: #fffcf5; }
+
+        /* Charts Wrapper */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .chart-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            min-height: 300px;
+        }
+
+        /* Table Area */
+        .table-container {
+            background: #fff;
+            margin-top: 30px;
+            border-radius: 12px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th { background: #f8fafc; text-align: left; padding: 12px; border-bottom: 1px solid var(--border-color); }
+        td { padding: 12px; border-bottom: 1px solid var(--border-color); }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div>
+            <h1 style="margin:0; font-size: 24px;">Дашборд задач системного администрирования</h1>
+            <p style="color: var(--text-muted); margin: 5px 0;">Обновлено: <span id="last-update">-</span></p>
+        </div>
+        <button class="refresh-btn" onclick="fetchData()">
+            <span>🔄</span> Обновить данные
+        </button>
+    </header>
+
+    <div class="summary-grid" id="stats-summary">
+        </div>
+
+    <div class="main-layout">
+        <div id="attention-required">
+            <div class="section-title">Требуют внимания</div>
+            <div id="alerts-list">Загрузка...</div>
+        </div>
+        
+        <div>
+            <div class="section-title">Нагрузка по ответственным</div>
+            <div class="chart-container">
+                <canvas id="responsibleChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-container">
+            <div class="section-title">По статусу</div>
+            <canvas id="statusChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <div class="section-title">По уровню риска</div>
+            <canvas id="riskChart"></canvas>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Проект / Система</th>
+                    <th>PM</th>
+                    <th>Статус</th>
+                    <th>Риск</th>
+                    <th>Комментарий</th>
+                </tr>
+            </thead>
+            <tbody id="full-table-body">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // ЗАМЕНИТЕ ЭТУ ССЫЛКУ на вашу ссылку из Шага 1 (Publish to Web -> CSV)
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/https://docs.google.com/spreadsheets/d/1Jo5NJOBj1mozS9QErScIWmJVcwexlNmYwrfTLXWfVv0/edit?usp=sharing/pub?output=csv';
+
+    async function fetchData() {
+        try {
+            const response = await fetch(SHEET_CSV_URL + '&cachebuster=' + Date.now());
+            const data = await response.text();
+            const rows = data.split('\n').map(row => row.split(','));
+            
+            // Предполагаем заголовки: [0]Название, [1]Категория, [2]PM, [3]Статус, [4]Риск, [5]Приоритет, [6]Дедлайн, [7]Комментарий
+            const projects = rows.slice(1).map(r => ({
+                name: r[0], pm: r[2], status: r[3], risk: r[4], comment: r[7]
+            })).filter(p => p.name);
+
+            renderDashboard(projects);
+            document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
+        } catch (e) {
+            console.error("Ошибка загрузки:", e);
+        }
+    }
+
+    function renderDashboard(projects) {
+        // 1. Статистика
+        const stats = {
+            total: projects.length,
+            inWork: projects.filter(p => p.status?.includes('работе')).length,
+            blocked: projects.filter(p => p.status?.includes('Блокер')).length,
+            support: projects.filter(p => p.status?.includes('поддержке')).length
+        };
+
+        document.getElementById('stats-summary').innerHTML = `
+            <div class="stat-card"><span class="stat-value">${stats.total}</span><span class="stat-label">Всего</span></div>
+            <div class="stat-card" style="color: var(--blue)"><span class="stat-value">${stats.inWork}</span><span class="stat-label">В работе</span></div>
+            <div class="stat-card" style="color: var(--red)"><span class="stat-value">${stats.blocked}</span><span class="stat-label">Блокеры</span></div>
+            <div class="stat-card" style="color: var(--green)"><span class="stat-value">${stats.support}</span><span class="stat-label">Поддержка</span></div>
+        `;
+
+        // 2. Список внимания (Риск Высокий или Блокер)
+        const alertsList = projects.filter(p => p.risk?.includes('Высокий') || p.status?.includes('Блокер'));
+        document.getElementById('alerts-list').innerHTML = alertsList.map(p => `
+            <div class="project-alert ${p.status?.includes('Блокер') ? 'alert-high' : 'alert-medium'}">
+                <div style="display:flex; justify-content:space-between">
+                    <strong>${p.name}</strong>
+                    <span class="badge ${p.status?.includes('Блокер') ? 'badge-red' : 'badge-blue'}">${p.status}</span>
+                </div>
+                <p style="font-size: 12px; color: #555; margin: 8px 0;">${p.comment || 'Нет комментария'}</p>
+                <div style="font-size: 11px; color: #888;">Ответственный: ${p.pm}</div>
+            </div>
+        `).join('');
+
+        // 3. Таблица
+        document.getElementById('full-table-body').innerHTML = projects.map(p => `
+            <tr>
+                <td><strong>${p.name}</strong></td>
+                <td>${p.pm}</td>
+                <td><span class="badge ${p.status?.includes('Блокер') ? 'badge-red' : ''}">${p.status}</span></td>
+                <td>${p.risk}</td>
+                <td style="color: #666; font-size: 11px;">${p.comment || ''}</td>
+            </tr>
+        `).join('');
+
+        renderCharts(projects);
+    }
+
+    function renderCharts(projects) {
+        // Упрощенный пример группировки для графиков
+        const statusCounts = {};
+        projects.forEach(p => statusCounts[p.status] = (statusCounts[p.status] || 0) + 1);
+
+        new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{
+                    data: Object.values(statusCounts),
+                    backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6']
+                }]
+            },
+            options: { plugins: { legend: { position: 'right' } } }
+        });
+    }
+
+    fetchData();
+</script>
+
+</body>
+</html>
