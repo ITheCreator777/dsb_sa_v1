@@ -140,6 +140,52 @@
             overflow-x: auto;
         }
 
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .table-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .status-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .status-filter-btn {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #64748b;
+            padding: 8px 14px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .status-filter-btn:hover {
+            border-color: #93c5fd;
+            color: #2563eb;
+        }
+
+        .status-filter-btn.active {
+            background: #eff6ff;
+            color: #2563eb;
+            border-color: #93c5fd;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -208,6 +254,10 @@
                 flex-direction: column;
                 align-items: flex-start;
             }
+
+            .table-header {
+                padding: 16px 16px 0;
+            }
         }
     </style>
 </head>
@@ -251,6 +301,11 @@
     </div>
 
     <div class="table-container">
+        <div class="table-header">
+            <div class="table-title">Все задачи</div>
+            <div class="status-filters" id="table-status-filters"></div>
+        </div>
+
         <table>
             <thead>
                 <tr>
@@ -271,6 +326,8 @@
 <script>
     const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRB9SuRNUZuhn0wdsec52gBSWBTT8sw8xlTV71hy5faH6kYzSMNkcFfPlujcgwSElxEaDCIrz4pOL5z/pub?gid=0&single=true&output=csv';
     const charts = {};
+    let dashboardProjects = [];
+    let currentTableStatusFilter = 'Все';
 
     function cleanLabel(value = '') {
         return String(value).replace(/^[^\p{L}\p{N}]+/gu, '').trim();
@@ -322,6 +379,56 @@
         charts[id] = new Chart(document.getElementById(id), config);
     }
 
+    function renderStatusFilters(projects) {
+        const statuses = [...new Set(
+            projects
+                .map((project) => cleanLabel(project.status))
+                .filter(Boolean)
+        )];
+
+        if (currentTableStatusFilter !== 'Все' && !statuses.includes(currentTableStatusFilter)) {
+            currentTableStatusFilter = 'Все';
+        }
+
+        const filters = ['Все', ...statuses];
+        const container = document.getElementById('table-status-filters');
+
+        container.innerHTML = filters.map((status) => `
+            <button
+                class="status-filter-btn ${currentTableStatusFilter === status ? 'active' : ''}"
+                data-status="${escapeHtml(status)}"
+            >
+                ${escapeHtml(status)}
+            </button>
+        `).join('');
+
+        container.querySelectorAll('.status-filter-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                currentTableStatusFilter = button.dataset.status;
+                renderStatusFilters(dashboardProjects);
+                renderProjectsTable(dashboardProjects);
+            });
+        });
+    }
+
+    function renderProjectsTable(projects) {
+        const filteredProjects = currentTableStatusFilter === 'Все'
+            ? projects
+            : projects.filter((project) => cleanLabel(project.status) === currentTableStatusFilter);
+
+        document.getElementById('full-table-body').innerHTML = filteredProjects.map((project) => `
+            <tr>
+                <td><strong>${escapeHtml(project.name)}</strong></td>
+                <td>${escapeHtml(project.type || '-')}</td>
+                <td>${escapeHtml(project.responsible || '-')}</td>
+                <td><span class="badge ${statusColor(project.status)}">${escapeHtml(project.status || '-')}</span></td>
+                <td><span class="badge ${priorityColor(project.priority)}">${escapeHtml(project.priority || '-')}</span></td>
+                <td>${escapeHtml(project.infrastructure || '-')}</td>
+                <td class="muted">${escapeHtml(project.deadline || '-')}</td>
+            </tr>
+        `).join('');
+    }
+
     async function fetchData() {
         try {
             const response = await fetch(SHEET_CSV_URL + '&cachebuster=' + Date.now());
@@ -354,7 +461,10 @@
     }
 
     function renderDashboard(allProjects) {
-        const activeProjects = allProjects.filter((project) => !project.archived && !cleanLabel(project.status).toLowerCase().includes('выполн'));
+        const activeProjects = allProjects.filter((project) =>
+            !project.archived && !cleanLabel(project.status).toLowerCase().includes('выполн')
+        );
+
         const chartProjects = activeProjects.length ? activeProjects : allProjects;
 
         const stats = {
@@ -391,17 +501,9 @@
             </div>
         `).join('') : '<div class="project-alert">Сейчас нет задач с высоким приоритетом или блокеров.</div>';
 
-        document.getElementById('full-table-body').innerHTML = allProjects.map((project) => `
-            <tr>
-                <td><strong>${escapeHtml(project.name)}</strong></td>
-                <td>${escapeHtml(project.type || '-')}</td>
-                <td>${escapeHtml(project.responsible || '-')}</td>
-                <td><span class="badge ${statusColor(project.status)}">${escapeHtml(project.status || '-')}</span></td>
-                <td><span class="badge ${priorityColor(project.priority)}">${escapeHtml(project.priority || '-')}</span></td>
-                <td>${escapeHtml(project.infrastructure || '-')}</td>
-                <td class="muted">${escapeHtml(project.deadline || '-')}</td>
-            </tr>
-        `).join('');
+        dashboardProjects = allProjects;
+        renderStatusFilters(allProjects);
+        renderProjectsTable(allProjects);
 
         renderCharts(chartProjects);
     }
