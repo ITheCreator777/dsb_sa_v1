@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Дашборд проектов 2026</title>
+    <title>Дашборд задач системного администрирования</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <style>
         :root {
             --bg-color: #f4f7f9;
@@ -37,6 +38,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 16px;
             margin-bottom: 20px;
         }
 
@@ -53,9 +55,10 @@
             transition: background 0.2s;
         }
 
-        .refresh-btn:hover { background: #f9fafb; }
+        .refresh-btn:hover {
+            background: #f9fafb;
+        }
 
-        /* Summary Cards */
         .summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -68,22 +71,36 @@
             padding: 20px;
             border-radius: 12px;
             text-align: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
-        .stat-value { font-size: 32px; font-weight: bold; display: block; }
-        .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-top: 5px; }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            display: block;
+        }
 
-        /* Main Content Layout */
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
         .main-layout {
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 20px;
         }
 
-        .section-title { font-size: 14px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; margin-bottom: 15px; }
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
 
-        /* Alert Cards */
         .project-alert {
             background: #fff;
             border-radius: 10px;
@@ -91,10 +108,17 @@
             margin-bottom: 10px;
             border-left: 5px solid var(--gray);
         }
-        .alert-high { border-left-color: var(--red); background: #fffafb; }
-        .alert-medium { border-left-color: var(--orange); background: #fffcf5; }
 
-        /* Charts Wrapper */
+        .alert-high {
+            border-left-color: var(--red);
+            background: #fffafb;
+        }
+
+        .alert-medium {
+            border-left-color: var(--orange);
+            background: #fffcf5;
+        }
+
         .charts-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -109,7 +133,6 @@
             min-height: 300px;
         }
 
-        /* Table Area */
         .table-container {
             background: #fff;
             margin-top: 30px;
@@ -123,25 +146,76 @@
             font-size: 13px;
         }
 
-        th { background: #f8fafc; text-align: left; padding: 12px; border-bottom: 1px solid var(--border-color); }
-        td { padding: 12px; border-bottom: 1px solid var(--border-color); }
+        th {
+            background: #f8fafc;
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
 
         .badge {
+            display: inline-block;
             padding: 4px 8px;
-            border-radius: 4px;
+            border-radius: 999px;
             font-size: 11px;
             font-weight: bold;
+            white-space: nowrap;
         }
-        .badge-red { background: #fee2e2; color: #991b1b; }
-        .badge-blue { background: #dbeafe; color: #1e40af; }
+
+        .badge-red {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-blue {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-green {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-orange {
+            background: #ffedd5;
+            color: #9a3412;
+        }
+
+        .badge-gray {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .muted {
+            color: #666;
+            font-size: 11px;
+        }
+
+        @media (max-width: 900px) {
+            .main-layout,
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
     </style>
 </head>
 <body>
-
 <div class="container">
     <header>
         <div>
-            <h1 style="margin:0; font-size: 24px;">Дашборд задач системного администрирования</h1>
+            <h1 style="margin:0; font-size:24px;">Дашборд задач системного администрирования</h1>
             <p style="color: var(--text-muted); margin: 5px 0;">Обновлено: <span id="last-update">-</span></p>
         </div>
         <button class="refresh-btn" onclick="fetchData()">
@@ -149,15 +223,14 @@
         </button>
     </header>
 
-    <div class="summary-grid" id="stats-summary">
-        </div>
+    <div class="summary-grid" id="stats-summary"></div>
 
     <div class="main-layout">
         <div id="attention-required">
             <div class="section-title">Требуют внимания</div>
             <div id="alerts-list">Загрузка...</div>
         </div>
-        
+
         <div>
             <div class="section-title">Нагрузка по ответственным</div>
             <div class="chart-container">
@@ -172,7 +245,7 @@
             <canvas id="statusChart"></canvas>
         </div>
         <div class="chart-container">
-            <div class="section-title">По уровню риска</div>
+            <div class="section-title">По приоритету</div>
             <canvas id="riskChart"></canvas>
         </div>
     </div>
@@ -181,104 +254,240 @@
         <table>
             <thead>
                 <tr>
-                    <th>Проект / Система</th>
-                    <th>PM</th>
+                    <th>Задача</th>
+                    <th>Тип</th>
+                    <th>Ответственный</th>
                     <th>Статус</th>
-                    <th>Риск</th>
-                    <th>Комментарий</th>
+                    <th>Приоритет</th>
+                    <th>Инфраструктура</th>
+                    <th>Deadline</th>
                 </tr>
             </thead>
-            <tbody id="full-table-body">
-                </tbody>
+            <tbody id="full-table-body"></tbody>
         </table>
     </div>
 </div>
 
 <script>
-    // ЗАМЕНИТЕ ЭТУ ССЫЛКУ на вашу ссылку из Шага 1 (Publish to Web -> CSV)
     const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRB9SuRNUZuhn0wdsec52gBSWBTT8sw8xlTV71hy5faH6kYzSMNkcFfPlujcgwSElxEaDCIrz4pOL5z/pub?gid=0&single=true&output=csv';
+    const charts = {};
+
+    function cleanLabel(value = '') {
+        return String(value).replace(/^[^\p{L}\p{N}]+/gu, '').trim();
+    }
+
+    function escapeHtml(value = '') {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function priorityColor(priority = '') {
+        const normalized = cleanLabel(priority).toLowerCase();
+        if (normalized.includes('крит')) return 'badge-red';
+        if (normalized.includes('высок')) return 'badge-blue';
+        if (normalized.includes('сред')) return 'badge-orange';
+        if (normalized.includes('низ')) return 'badge-gray';
+        return 'badge-gray';
+    }
+
+    function statusColor(status = '') {
+        const normalized = cleanLabel(status).toLowerCase();
+        if (normalized.includes('выполн')) return 'badge-green';
+        if (normalized.includes('блок')) return 'badge-red';
+        if (normalized.includes('пауз')) return 'badge-orange';
+        if (normalized.includes('работ')) return 'badge-blue';
+        return 'badge-gray';
+    }
+
+    function groupCounts(items, keySelector) {
+        return items.reduce((acc, item) => {
+            const key = keySelector(item) || 'Без значения';
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+        }, {});
+    }
+
+    function destroyChart(id) {
+        if (charts[id]) {
+            charts[id].destroy();
+        }
+    }
+
+    function createChart(id, config) {
+        destroyChart(id);
+        charts[id] = new Chart(document.getElementById(id), config);
+    }
 
     async function fetchData() {
         try {
             const response = await fetch(SHEET_CSV_URL + '&cachebuster=' + Date.now());
-            const data = await response.text();
-            const rows = data.split('\n').map(row => row.split(','));
-            
-            // Предполагаем заголовки: [0]Название, [1]Категория, [2]PM, [3]Статус, [4]Риск, [5]Приоритет, [6]Дедлайн, [7]Комментарий
-            const projects = rows.slice(1).map(r => ({
-                name: r[0], pm: r[2], status: r[3], risk: r[4], comment: r[7]
-            })).filter(p => p.name);
+            const csvText = await response.text();
+            const parsed = Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true
+            });
 
-            renderDashboard(projects);
-            document.getElementById('last-update').innerText = new Date().toLocaleTimeString();
-        } catch (e) {
-            console.error("Ошибка загрузки:", e);
+            const allProjects = parsed.data.map((row) => ({
+                id: row['№'] || '',
+                name: row['Задача'] || '',
+                type: row['Тип'] || '',
+                priority: row['Приоритет'] || '',
+                responsible: row['Ответственный'] || '',
+                status: row['Статус'] || '',
+                deadline: row['Deadline'] || '',
+                infrastructure: row['Инфраструктура'] || '',
+                context: row['Контекст/Логи'] || '',
+                archived: String(row['Архив'] || '').toUpperCase() === 'TRUE',
+                closedAt: row['Дата закрытия'] || ''
+            })).filter((project) => project.name);
+
+            renderDashboard(allProjects);
+            document.getElementById('last-update').innerText = new Date().toLocaleString('ru-RU');
+        } catch (error) {
+            console.error('Ошибка загрузки:', error);
+            document.getElementById('alerts-list').innerHTML = '<div class="project-alert alert-high">Не удалось загрузить CSV. Проверьте опубликованную ссылку и доступность таблицы.</div>';
         }
     }
 
-    function renderDashboard(projects) {
-        // 1. Статистика
+    function renderDashboard(allProjects) {
+        const activeProjects = allProjects.filter((project) => !project.archived && !cleanLabel(project.status).toLowerCase().includes('выполн'));
+        const chartProjects = activeProjects.length ? activeProjects : allProjects;
+
         const stats = {
-            total: projects.length,
-            inWork: projects.filter(p => p.status?.includes('работе')).length,
-            blocked: projects.filter(p => p.status?.includes('Блокер')).length,
-            support: projects.filter(p => p.status?.includes('поддержке')).length
+            total: allProjects.length,
+            active: activeProjects.length,
+            blocked: activeProjects.filter((project) => cleanLabel(project.status).toLowerCase().includes('блок')).length,
+            done: allProjects.filter((project) => cleanLabel(project.status).toLowerCase().includes('выполн')).length
         };
 
         document.getElementById('stats-summary').innerHTML = `
-            <div class="stat-card"><span class="stat-value">${stats.total}</span><span class="stat-label">Всего</span></div>
-            <div class="stat-card" style="color: var(--blue)"><span class="stat-value">${stats.inWork}</span><span class="stat-label">В работе</span></div>
+            <div class="stat-card"><span class="stat-value">${stats.total}</span><span class="stat-label">Всего задач</span></div>
+            <div class="stat-card" style="color: var(--blue)"><span class="stat-value">${stats.active}</span><span class="stat-label">Активные</span></div>
             <div class="stat-card" style="color: var(--red)"><span class="stat-value">${stats.blocked}</span><span class="stat-label">Блокеры</span></div>
-            <div class="stat-card" style="color: var(--green)"><span class="stat-value">${stats.support}</span><span class="stat-label">Поддержка</span></div>
+            <div class="stat-card" style="color: var(--green)"><span class="stat-value">${stats.done}</span><span class="stat-label">Выполнено</span></div>
         `;
 
-        // 2. Список внимания (Риск Высокий или Блокер)
-        const alertsList = projects.filter(p => p.risk?.includes('Высокий') || p.status?.includes('Блокер'));
-        document.getElementById('alerts-list').innerHTML = alertsList.map(p => `
-            <div class="project-alert ${p.status?.includes('Блокер') ? 'alert-high' : 'alert-medium'}">
-                <div style="display:flex; justify-content:space-between">
-                    <strong>${p.name}</strong>
-                    <span class="badge ${p.status?.includes('Блокер') ? 'badge-red' : 'badge-blue'}">${p.status}</span>
-                </div>
-                <p style="font-size: 12px; color: #555; margin: 8px 0;">${p.comment || 'Нет комментария'}</p>
-                <div style="font-size: 11px; color: #888;">Ответственный: ${p.pm}</div>
-            </div>
-        `).join('');
+        const attentionList = activeProjects
+            .filter((project) => {
+                const priority = cleanLabel(project.priority).toLowerCase();
+                const status = cleanLabel(project.status).toLowerCase();
+                return status.includes('блок') || priority.includes('крит') || priority.includes('высок');
+            })
+            .slice(0, 8);
 
-        // 3. Таблица
-        document.getElementById('full-table-body').innerHTML = projects.map(p => `
+        document.getElementById('alerts-list').innerHTML = attentionList.length ? attentionList.map((project) => `
+            <div class="project-alert ${cleanLabel(project.status).toLowerCase().includes('блок') || cleanLabel(project.priority).toLowerCase().includes('крит') ? 'alert-high' : 'alert-medium'}">
+                <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                    <strong>${escapeHtml(project.name)}</strong>
+                    <span class="badge ${priorityColor(project.priority)}">${escapeHtml(project.priority)}</span>
+                </div>
+                <p style="font-size:12px; color:#555; margin:8px 0;">${escapeHtml(project.context || 'Без комментария')}</p>
+                <div class="muted">Ответственный: ${escapeHtml(project.responsible || 'Не назначен')}</div>
+                <div class="muted">Статус: ${escapeHtml(project.status || 'Не указан')} | Deadline: ${escapeHtml(project.deadline || 'Не указан')}</div>
+            </div>
+        `).join('') : '<div class="project-alert">Сейчас нет задач с высоким приоритетом или блокеров.</div>';
+
+        document.getElementById('full-table-body').innerHTML = allProjects.map((project) => `
             <tr>
-                <td><strong>${p.name}</strong></td>
-                <td>${p.pm}</td>
-                <td><span class="badge ${p.status?.includes('Блокер') ? 'badge-red' : ''}">${p.status}</span></td>
-                <td>${p.risk}</td>
-                <td style="color: #666; font-size: 11px;">${p.comment || ''}</td>
+                <td><strong>${escapeHtml(project.name)}</strong></td>
+                <td>${escapeHtml(project.type || '-')}</td>
+                <td>${escapeHtml(project.responsible || '-')}</td>
+                <td><span class="badge ${statusColor(project.status)}">${escapeHtml(project.status || '-')}</span></td>
+                <td><span class="badge ${priorityColor(project.priority)}">${escapeHtml(project.priority || '-')}</span></td>
+                <td>${escapeHtml(project.infrastructure || '-')}</td>
+                <td class="muted">${escapeHtml(project.deadline || '-')}</td>
             </tr>
         `).join('');
 
-        renderCharts(projects);
+        renderCharts(chartProjects);
     }
 
     function renderCharts(projects) {
-        // Упрощенный пример группировки для графиков
-        const statusCounts = {};
-        projects.forEach(p => statusCounts[p.status] = (statusCounts[p.status] || 0) + 1);
+        const statusCounts = groupCounts(projects, (project) => cleanLabel(project.status));
+        const priorityCounts = groupCounts(projects, (project) => cleanLabel(project.priority));
+        const responsibleCounts = groupCounts(projects, (project) => project.responsible);
 
-        new Chart(document.getElementById('statusChart'), {
+        createChart('statusChart', {
             type: 'doughnut',
             data: {
                 labels: Object.keys(statusCounts),
                 datasets: [{
                     data: Object.values(statusCounts),
-                    backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6']
+                    backgroundColor: ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#94a3b8']
                 }]
             },
-            options: { plugins: { legend: { position: 'right' } } }
+            options: {
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+
+        createChart('riskChart', {
+            type: 'bar',
+            data: {
+                labels: Object.keys(priorityCounts),
+                datasets: [{
+                    label: 'Количество задач',
+                    data: Object.values(priorityCounts),
+                    backgroundColor: ['#ef4444', '#3b82f6', '#f59e0b', '#94a3b8']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+
+        createChart('responsibleChart', {
+            type: 'bar',
+            data: {
+                labels: Object.keys(responsibleCounts),
+                datasets: [{
+                    label: 'Активные задачи',
+                    data: Object.values(responsibleCounts),
+                    backgroundColor: '#3b82f6'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
         });
     }
 
     fetchData();
 </script>
-
 </body>
 </html>
